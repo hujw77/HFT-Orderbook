@@ -1,6 +1,6 @@
 //! Order implementation for the HFT orderbook
 
-use crate::types::{OrderId, Price, Quantity, Side, Timestamp, ExchangeId, OrderStatus};
+use crate::types::{OrderId, Price, Quantity, Side, Timestamp, ExchangeId};
 use std::fmt;
 
 #[cfg(feature = "serde_support")]
@@ -45,8 +45,6 @@ pub struct Order {
     pub event_time: Timestamp,
     /// Exchange identifier
     pub exchange_id: ExchangeId,
-    /// Current status of the order
-    pub status: OrderStatus,
     /// Index of next order in the doubly-linked list (None if tail)
     /// 
     /// This is an index into `OrderBook.orders` vector, not a raw pointer.
@@ -80,7 +78,6 @@ impl Order {
             entry_time,
             event_time: entry_time,
             exchange_id,
-            status: OrderStatus::Active,
             next_order_index: None,
             prev_order_index: None,
             parent_limit_index: None,
@@ -113,17 +110,11 @@ impl Order {
         let fill_quantity = quantity.min(self.quantity);
         self.quantity -= fill_quantity;
         self.event_time = event_time;
-        
-        if self.quantity == 0 {
-            self.status = OrderStatus::Filled;
-        }
-        
         fill_quantity
     }
 
     /// Cancel the order
     pub fn cancel(&mut self, event_time: Timestamp) {
-        self.status = OrderStatus::Cancelled;
         self.event_time = event_time;
     }
 
@@ -135,13 +126,6 @@ impl Order {
 
         self.quantity = new_quantity;
         self.event_time = event_time;
-        
-        if self.quantity == 0 {
-            self.status = OrderStatus::Filled;
-        } else {
-            self.status = OrderStatus::Active;
-        }
-        
         true
     }
 }
@@ -150,8 +134,8 @@ impl fmt::Display for Order {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Order[{}]: {} {} @ {} (status: {})",
-            self.id, self.side, self.quantity, self.price, self.status
+            "Order[{}]: {} {} @ {}",
+            self.id, self.side, self.quantity, self.price
         )
     }
 }
@@ -182,7 +166,6 @@ mod tests {
         assert_eq!(order.side, Side::Buy);
         assert_eq!(order.quantity, 100);
         assert_eq!(order.price, 5000);
-        assert_eq!(order.status, OrderStatus::Active);
         assert!(!order.is_filled());
     }
 
@@ -195,14 +178,12 @@ mod tests {
         assert_eq!(filled, 30);
         assert_eq!(order.quantity, 70);
         assert!(!order.is_filled());
-        assert_eq!(order.status, OrderStatus::Active);
         
         // Complete fill
         let filled = order.fill(70, 1002);
         assert_eq!(filled, 70);
         assert_eq!(order.quantity, 0);
         assert!(order.is_filled());
-        assert_eq!(order.status, OrderStatus::Filled);
     }
 
     #[test]

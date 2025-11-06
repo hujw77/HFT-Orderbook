@@ -32,13 +32,11 @@ class Order:
 pub struct Order {
     pub id: OrderId,
     pub side: Side,
-    pub quantity: Quantity,
-    pub remaining_quantity: Quantity,
+    pub quantity: Quantity,    // 直接修改，与 C/Python 一致
     pub price: Price,
     pub entry_time: Timestamp,
     pub event_time: Timestamp,
     pub exchange_id: ExchangeId,
-    pub status: OrderStatus,
     pub(crate) next_order_index: Option<usize>,      // 索引！
     pub(crate) prev_order_index: Option<usize>,      // 索引！
     pub(crate) parent_limit_index: Option<usize>,   // 索引！
@@ -126,16 +124,12 @@ if let Some(next_idx) = self.orders[order_idx].next_order_index {
 - 编译器保证不会出现悬空指针
 - 运行时不会出现内存错误
 
-### 6. **额外的改进**
+### 6. **与 C/Python 实现的一致性**
 
-Rust 实现还添加了一些 C/Python 没有的字段：
-
-```rust
-pub remaining_quantity: Quantity,  // 支持部分成交
-pub status: OrderStatus,          // 订单状态跟踪
-```
-
-这些字段使得 Rust 实现更符合现代交易系统的需求。
+Rust 实现现在与 C/Python 实现保持一致：
+- 只使用 `quantity` 字段，直接修改它（与 C 的 `shares` 和 Python 的 `size` 一致）
+- 没有额外的状态字段（已移除 `OrderStatus`）
+- 纯数据结构，不包含匹配逻辑（已移除 `MatchingEngine`）
 
 ## 总结
 

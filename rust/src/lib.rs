@@ -24,14 +24,12 @@
 pub mod order;
 pub mod limit;
 pub mod orderbook;
-pub mod matching_engine;
 pub mod avl_tree;
 pub mod types;
 
 pub use order::Order;
 pub use limit::Limit;
 pub use orderbook::OrderBook;
-pub use matching_engine::MatchingEngine;
 pub use types::{OrderId, Price, Quantity, Side, Timestamp, Trade};
 
 #[cfg(test)]

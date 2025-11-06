@@ -1,15 +1,14 @@
-use hft_orderbook::{OrderBook, MatchingEngine, Order, Side};
+use hft_orderbook::{OrderBook, Order, Side};
 
 fn main() {
     println!("Simple OrderBook Demo - Pure Data Structure");
     println!("===========================================");
 
-    // Create orderbook (pure data structure) and matching engine (separate)
+    // Create orderbook (pure data structure)
     let mut book = OrderBook::new();
-    let engine = MatchingEngine::new();
     book.set_time(1000);
 
-    println!("Created empty orderbook and matching engine");
+    println!("Created empty orderbook");
     println!("Best bid: {:?}", book.best_bid());
     println!("Best ask: {:?}", book.best_ask());
 
@@ -38,22 +37,14 @@ fn main() {
     println!("Bids: {:?}", bids);
     println!("Asks: {:?}", asks);
 
-    // Use matching engine for order processing
-    println!("\n2. Using matching engine for order processing:");
+    // Add another order (pure data structure operation)
+    println!("\n2. Adding another order:");
     
-    let crossing_order = Order::new(5, Side::Buy, 75, 5055, 1004, 1);
-    
-    match engine.process_order(&mut book, crossing_order) {
-        Ok(trades) => {
-            println!("Processed crossing order, generated {} trades:", trades.len());
-            for trade in trades {
-                println!("  {}", trade);
-            }
-        }
-        Err(e) => println!("Error processing order: {}", e),
-    }
+    let new_order = Order::new(5, Side::Buy, 75, 4970, 1004, 1);
+    book.add_order(new_order).unwrap();
+    println!("Added buy order at 4970");
 
-    println!("\nAfter matching:");
+    println!("\nAfter adding order:");
     println!("Best bid: {:?}", book.best_bid());
     println!("Best ask: {:?}", book.best_ask());
     println!("Total orders: {}", book.total_orders());

@@ -60,28 +60,6 @@ impl Side {
     }
 }
 
-/// Order status
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
-pub enum OrderStatus {
-    /// Order is active in the book
-    Active,
-    /// Order has been filled
-    Filled,
-    /// Order has been cancelled
-    Cancelled,
-}
-
-impl fmt::Display for OrderStatus {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            OrderStatus::Active => write!(f, "Active"),
-            OrderStatus::Filled => write!(f, "Filled"),
-            OrderStatus::Cancelled => write!(f, "Cancelled"),
-        }
-    }
-}
-
 /// Trade information when orders are matched
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]

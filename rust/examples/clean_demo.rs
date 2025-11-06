@@ -1,12 +1,11 @@
-use hft_orderbook::{OrderBook, MatchingEngine, Order, Side};
+use hft_orderbook::{OrderBook, Order, Side};
 
 fn main() {
     println!("Clean OrderBook Demo");
     println!("===================");
 
-    // Create orderbook and matching engine
+    // Create orderbook
     let mut book = OrderBook::new();
-    let engine = MatchingEngine::new();
     book.set_time(1000);
 
     println!("Created empty orderbook");
@@ -42,18 +41,13 @@ fn main() {
     println!("Bids: {:?}", bids);
     println!("Asks: {:?}", asks);
 
-    // Use matching engine for crossing order
-    println!("\n2. Using matching engine for crossing order:");
-    let crossing_order = Order::new(5, Side::Buy, 75, 5055, 1004, 1);
+    // Add another order
+    println!("\n2. Adding another order:");
+    let new_order = Order::new(5, Side::Buy, 75, 4970, 1004, 1);
 
-    match engine.process_order(&mut book, crossing_order) {
-        Ok(trades) => {
-            println!("Generated {} trades:", trades.len());
-            for trade in trades {
-                println!("  {}", trade);
-            }
-        }
-        Err(e) => println!("Error: {}", e),
+    match book.add_order(new_order) {
+        Ok(()) => println!("Added buy order at 4970"),
+        Err(e) => println!("Error adding order: {}", e),
     }
 
     // Pure orderbook operations

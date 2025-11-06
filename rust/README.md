@@ -4,11 +4,11 @@ A high-performance limit order book implementation in Rust, following the C/Pyth
 
 ## Design Philosophy
 
-This implementation follows the **pure data structure** approach, similar to the original C and Python implementations:
+This implementation follows the **pure data structure** approach, exactly like the original C and Python implementations:
 
 - **OrderBook**: Pure data structure for managing orders and price levels
-- **MatchingEngine**: Separate component for order matching logic
-- **Clean separation**: Data management vs. business logic
+- **No matching logic**: Just data structure operations (add, remove, update, query)
+- **Consistent with C/Python**: Same design pattern as the reference implementations
 
 ## Features
 
@@ -17,7 +17,7 @@ This implementation follows the **pure data structure** approach, similar to the
 - **AVL tree** for efficient price level management
 - **Memory efficient** with pre-allocated pools
 - **Python-style API** with `process_order()` method
-- **Flexible matching** with pluggable matching engines
+- **Pure data structure**: No matching logic, just order management
 
 ## Architecture
 
@@ -26,22 +26,23 @@ This implementation follows the **pure data structure** approach, similar to the
 - **Order**: Individual buy/sell orders with price, quantity, and metadata
 - **Limit**: Price levels containing linked lists of orders at the same price
 - **OrderBook**: Pure data structure managing orders and limits using AVL trees
-- **MatchingEngine**: Separate component handling order matching logic
 - **AVL Tree**: Self-balancing binary search tree for O(log n) price level operations
 
 ### Design Pattern
 
 ```
-┌─────────────────┐    ┌─────────────────┐
-│   OrderBook     │    │ MatchingEngine  │
-│  (Data Only)    │    │ (Logic Only)    │
-├─────────────────┤    ├─────────────────┤
-│ • add_order()   │    │ • process_order │
-│ • remove_order()│    │ • match_buy()   │
-│ • update_order()│    │ • match_sell()  │
-│ • best_bid()    │    │ • generate_trades│
-│ • best_ask()    │    │                 │
-└─────────────────┘    └─────────────────┘
+┌─────────────────┐
+│   OrderBook     │
+│  (Data Only)    │
+├─────────────────┤
+│ • add_order()   │
+│ • remove_order()│
+│ • update_order()│
+│ • process_order()│
+│ • best_bid()    │
+│ • best_ask()    │
+│ • get_levels()  │
+└─────────────────┘
 ```
 
 ## Performance Characteristics
@@ -53,7 +54,7 @@ This implementation follows the **pure data structure** approach, similar to the
 | Update Order | O(1) | In-place quantity update |
 | Best Bid/Ask | O(1) | Cached values |
 | Market Data | O(1) | Real-time statistics |
-| Order Matching | O(k) | Where k is number of matched orders |
+| Query Levels | O(M) | Where M is number of price levels |
 
 ## Usage
 
@@ -79,22 +80,23 @@ let order = Order::new(2, Side::Sell, 50, 5050, 1001, 1);
 book.process_order(order)?; // Add/update/remove based on quantity
 ```
 
-### With Matching Engine
+### Order Processing
 
 ```rust
-use hft_orderbook::{OrderBook, MatchingEngine, Order, Side};
+use hft_orderbook::{OrderBook, Order, Side};
 
 let mut book = OrderBook::new();
-let engine = MatchingEngine::new();
 
-// Add resting orders
+// Add orders
 book.add_order(Order::new(1, Side::Sell, 100, 5000, 1000, 1))?;
 
-// Process crossing order with matching
-let crossing_order = Order::new(2, Side::Buy, 75, 5000, 1001, 1);
-let trades = engine.process_order(&mut book, crossing_order)?;
+// Update order (Python-style)
+let updated = Order::new(1, Side::Sell, 150, 5000, 1001, 1);
+book.process_order(updated)?; // Updates existing order
 
-println!("Generated {} trades", trades.len());
+// Remove order (set quantity to 0)
+let removed = Order::new(1, Side::Sell, 0, 5000, 1002, 1);
+book.process_order(removed)?; // Removes order
 ```
 
 ## API Reference
@@ -111,9 +113,6 @@ println!("Generated {} trades", trades.len());
 - `volume_at_price(price)` - Get total volume at price
 - `orders_at_price(price)` - Get order count at price
 
-### MatchingEngine Methods
-
-- `process_order(book, order)` - Process order with matching logic
 
 ## Examples
 
@@ -147,9 +146,9 @@ cargo bench
 
 This implementation maintains consistency with the original C and Python versions:
 
-- **Pure data structure**: OrderBook only manages data, no matching logic
-- **External matching**: Matching logic is handled by separate MatchingEngine
-- **Python-style API**: `process_order()` method for smart order handling
+- **Pure data structure**: OrderBook only manages data, no matching logic (exactly like C/Python)
+- **Python-style API**: `process_order()` method for smart add/update/remove (same as Python)
 - **Performance**: Same O(1) and O(log M) characteristics as original
+- **Data structure only**: No matching engine, just pure order book operations
 
-This design makes the codebase more maintainable, testable, and flexible while preserving the high-performance characteristics of the original implementation.
+This design exactly matches the C and Python implementations - a pure data structure for managing orders and price levels, without any matching logic.

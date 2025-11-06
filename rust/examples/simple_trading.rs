@@ -1,13 +1,12 @@
-use hft_orderbook::{OrderBook, MatchingEngine, Order, Side};
+use hft_orderbook::{OrderBook, Order, Side};
 use rand::{Rng, SeedableRng};
 use rand::rngs::StdRng;
 
 fn main() {
-    println!("Simple Trading Simulation");
-    println!("=========================");
+    println!("Simple OrderBook Simulation");
+    println!("===========================");
 
     let mut book = OrderBook::with_capacity(1000, 100);
-    let engine = MatchingEngine::new();
     let mut rng = StdRng::seed_from_u64(42);
     let mut order_id = 1u64;
     let mut timestamp = 1000u64;
@@ -37,66 +36,23 @@ fn main() {
 
     print_market_state(&book, "Initial Market State");
 
-    // Phase 2: Test large order execution
-    println!("\nPhase 2: Large order execution...");
+    // Phase 2: Add more orders
+    println!("\nPhase 2: Adding more orders...");
     
-    println!("Adding large buy order (2000 @ 5015)...");
-    let large_buy_order = Order::new(order_id, Side::Buy, 2000, 5015, timestamp, 1);
-
-    match engine.process_order(&mut book, large_buy_order) {
-        Ok(trades) => {
-            println!("Large buy order generated {} trades:", trades.len());
-            let mut total_executed = 0;
-            for (i, trade) in trades.iter().enumerate() {
-                println!("  Trade {}: {} @ {} (qty: {})", i+1, trade.aggressor_side, trade.price, trade.quantity);
-                total_executed += trade.quantity;
-                
-                // Add a safety check to prevent infinite output
-                if i >= 50 {
-                    println!("  ... (showing first 50 trades only)");
-                    break;
-                }
-            }
-            println!("Total executed: {} shares", total_executed);
-        }
-        Err(e) => {
-            println!("Error: {}", e);
-            return;
-        }
-    }
-    
+    println!("Adding large buy order (2000 @ 4995)...");
+    let large_buy_order = Order::new(order_id, Side::Buy, 2000, 4995, timestamp, 1);
+    book.add_order(large_buy_order).unwrap();
     order_id += 1;
     timestamp += 1;
 
-    print_market_state(&book, "After Large Order");
+    print_market_state(&book, "After Adding Large Buy Order");
 
-    // Phase 3: Test large sell order
-    println!("\nPhase 3: Large sell order execution...");
+    // Phase 3: Add sell orders
+    println!("\nPhase 3: Adding sell orders...");
     
-    println!("Adding large sell order (1500 @ 4985)...");
-    let large_sell_order = Order::new(order_id, Side::Sell, 1500, 4985, timestamp, 1);
-
-    match engine.process_order(&mut book, large_sell_order) {
-        Ok(trades) => {
-            println!("Large sell order generated {} trades:", trades.len());
-            let mut total_executed = 0;
-            for (i, trade) in trades.iter().enumerate() {
-                println!("  Trade {}: {} @ {} (qty: {})", i+1, trade.aggressor_side, trade.price, trade.quantity);
-                total_executed += trade.quantity;
-
-                // Add a safety check to prevent infinite output
-                if i >= 50 {
-                    println!("  ... (showing first 50 trades only)");
-                    break;
-                }
-            }
-            println!("Total executed: {} shares", total_executed);
-        }
-        Err(e) => {
-            println!("Error: {}", e);
-            return;
-        }
-    }
+    println!("Adding large sell order (1500 @ 5005)...");
+    let large_sell_order = Order::new(order_id, Side::Sell, 1500, 5005, timestamp, 1);
+    book.add_order(large_sell_order).unwrap();
 
     print_market_state(&book, "Final Market State");
 
