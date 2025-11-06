@@ -240,7 +240,7 @@ impl OrderBook {
 
         let order = self.orders[order_idx].as_mut().unwrap();
         let limit_idx = order.parent_limit_index.unwrap();
-        let old_quantity = order.remaining_quantity;
+        let old_quantity = order.quantity;
 
         // Update order quantity
         if !order.update_quantity(new_quantity, self.current_time) {
@@ -249,7 +249,7 @@ impl OrderBook {
 
         // Update limit statistics
         self.limits[limit_idx].as_mut().unwrap()
-            .update_order_stats(old_quantity, order.remaining_quantity);
+            .update_order_stats(old_quantity, order.quantity);
 
         Ok(())
     }
@@ -334,7 +334,7 @@ impl OrderBook {
         let order_id = order.id;
         let price = order.price;
         let side = order.side;
-        let quantity = order.remaining_quantity;
+        let quantity = order.quantity;
 
         // Store the order first
         self.orders[order_idx] = Some(order);
@@ -409,7 +409,7 @@ impl OrderBook {
         // Extract order data before borrowing mutably
         let (prev_idx, next_idx, order_id, quantity) = {
             let order = self.orders[order_idx].as_ref().unwrap();
-            (order.prev_order_index, order.next_order_index, order.id, order.remaining_quantity)
+            (order.prev_order_index, order.next_order_index, order.id, order.quantity)
         };
 
         // Update linked list pointers

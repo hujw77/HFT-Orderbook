@@ -36,7 +36,7 @@ impl MatchingEngine {
         };
 
         // If there's remaining quantity, add to book
-        if order.remaining_quantity > 0 {
+        if order.quantity > 0 {
             book.add_order(order)?;
         }
 
@@ -49,7 +49,7 @@ impl MatchingEngine {
         let mut iterations = 0;
         const MAX_ITERATIONS: usize = 10000; // Safety limit
 
-        while order.remaining_quantity > 0 {
+        while order.quantity > 0 {
             iterations += 1;
             if iterations > MAX_ITERATIONS {
                 return Err(OrderBookError::TreeError(
@@ -86,7 +86,7 @@ impl MatchingEngine {
         let mut iterations = 0;
         const MAX_ITERATIONS: usize = 10000; // Safety limit
 
-        while order.remaining_quantity > 0 {
+        while order.quantity > 0 {
             iterations += 1;
             if iterations > MAX_ITERATIONS {
                 return Err(OrderBookError::TreeError(
@@ -132,7 +132,7 @@ impl MatchingEngine {
             return Ok(None);
         }
 
-        let trade_quantity = incoming_order.remaining_quantity.min(available_quantity);
+        let trade_quantity = incoming_order.quantity.min(available_quantity);
         
         // Create a dummy passive order ID for the trade
         // In a real implementation, we'd get this from the actual order being matched

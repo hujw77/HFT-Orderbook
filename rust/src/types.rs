@@ -70,8 +70,6 @@ pub enum OrderStatus {
     Filled,
     /// Order has been cancelled
     Cancelled,
-    /// Order has been partially filled
-    PartiallyFilled,
 }
 
 impl fmt::Display for OrderStatus {
@@ -80,7 +78,6 @@ impl fmt::Display for OrderStatus {
             OrderStatus::Active => write!(f, "Active"),
             OrderStatus::Filled => write!(f, "Filled"),
             OrderStatus::Cancelled => write!(f, "Cancelled"),
-            OrderStatus::PartiallyFilled => write!(f, "PartiallyFilled"),
         }
     }
 }

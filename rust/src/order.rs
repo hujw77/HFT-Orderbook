@@ -7,6 +7,27 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 /// Represents a single order in the orderbook
+///
+/// **Important Design Decision: Index-based vs Pointer-based**
+///
+/// Unlike the C/Python implementations which use raw pointers (`Order *nextOrder`),
+/// this Rust implementation uses indices (`Option<usize>`) to reference other orders
+/// and limits. This is because:
+///
+/// 1. **Memory Safety**: Rust's ownership system doesn't allow circular references
+///    with mutable access, which is required for doubly-linked lists with pointers.
+///
+/// 2. **Performance**: Index access is O(1) and just as fast as pointer dereferencing,
+///    while providing better cache locality since data is stored in contiguous vectors.
+///
+/// 3. **Simplicity**: No need for lifetime annotations that would complicate the API.
+///
+/// 4. **Safety**: Index-based access is validated at access time, preventing
+///    dangling pointer bugs that are common in C implementations.
+///
+/// The indices refer to positions in `OrderBook.orders` and `OrderBook.limits` vectors.
+/// This pattern is known as "Slot Map" or "Arena Allocator" and is common in Rust
+/// for similar data structures.
 #[derive(Debug, Clone, PartialEq)]
 #[cfg_attr(feature = "serde_support", derive(Serialize, Deserialize))]
 pub struct Order {
@@ -16,8 +37,6 @@ pub struct Order {
     pub side: Side,
     /// Order quantity (shares)
     pub quantity: Quantity,
-    /// Remaining quantity (for partial fills)
-    pub remaining_quantity: Quantity,
     /// Limit price
     pub price: Price,
     /// Time when order was created
@@ -29,10 +48,17 @@ pub struct Order {
     /// Current status of the order
     pub status: OrderStatus,
     /// Index of next order in the doubly-linked list (None if tail)
+    /// 
+    /// This is an index into `OrderBook.orders` vector, not a raw pointer.
+    /// This allows safe circular references without violating Rust's borrow rules.
     pub(crate) next_order_index: Option<usize>,
     /// Index of previous order in the doubly-linked list (None if head)
+    /// 
+    /// This is an index into `OrderBook.orders` vector, not a raw pointer.
     pub(crate) prev_order_index: Option<usize>,
     /// Index of the parent limit level
+    /// 
+    /// This is an index into `OrderBook.limits` vector, not a raw pointer.
     pub(crate) parent_limit_index: Option<usize>,
 }
 
@@ -50,7 +76,6 @@ impl Order {
             id,
             side,
             quantity,
-            remaining_quantity: quantity,
             price,
             entry_time,
             event_time: entry_time,
@@ -74,17 +99,7 @@ impl Order {
 
     /// Check if the order is completely filled
     pub fn is_filled(&self) -> bool {
-        self.remaining_quantity == 0
-    }
-
-    /// Check if the order is partially filled
-    pub fn is_partially_filled(&self) -> bool {
-        self.remaining_quantity > 0 && self.remaining_quantity < self.quantity
-    }
-
-    /// Get the filled quantity
-    pub fn filled_quantity(&self) -> Quantity {
-        self.quantity - self.remaining_quantity
+        self.quantity == 0
     }
 
     /// Calculate the total value of the order (price * quantity)
@@ -92,22 +107,15 @@ impl Order {
         self.price as u128 * self.quantity as u128
     }
 
-    /// Calculate the remaining value of the order (price * remaining_quantity)
-    pub fn remaining_value(&self) -> u128 {
-        self.price as u128 * self.remaining_quantity as u128
-    }
-
     /// Fill the order by the specified quantity
     /// Returns the actual quantity filled (may be less than requested)
     pub fn fill(&mut self, quantity: Quantity, event_time: Timestamp) -> Quantity {
-        let fill_quantity = quantity.min(self.remaining_quantity);
-        self.remaining_quantity -= fill_quantity;
+        let fill_quantity = quantity.min(self.quantity);
+        self.quantity -= fill_quantity;
         self.event_time = event_time;
         
-        if self.remaining_quantity == 0 {
+        if self.quantity == 0 {
             self.status = OrderStatus::Filled;
-        } else if self.remaining_quantity < self.quantity {
-            self.status = OrderStatus::PartiallyFilled;
         }
         
         fill_quantity
@@ -121,20 +129,15 @@ impl Order {
 
     /// Update the order quantity (for order modifications)
     pub fn update_quantity(&mut self, new_quantity: Quantity, event_time: Timestamp) -> bool {
-        let filled = self.filled_quantity();
-        if new_quantity < filled {
-            // Cannot reduce quantity below filled amount
+        if new_quantity == 0 {
             return false;
         }
 
         self.quantity = new_quantity;
-        self.remaining_quantity = new_quantity - filled;
         self.event_time = event_time;
         
-        if self.remaining_quantity == 0 {
+        if self.quantity == 0 {
             self.status = OrderStatus::Filled;
-        } else if self.filled_quantity() > 0 {
-            self.status = OrderStatus::PartiallyFilled;
         } else {
             self.status = OrderStatus::Active;
         }
@@ -147,8 +150,8 @@ impl fmt::Display for Order {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Order[{}]: {} {} @ {} (remaining: {}, status: {})",
-            self.id, self.side, self.quantity, self.price, self.remaining_quantity, self.status
+            "Order[{}]: {} {} @ {} (status: {})",
+            self.id, self.side, self.quantity, self.price, self.status
         )
     }
 }
@@ -178,11 +181,9 @@ mod tests {
         assert_eq!(order.id, 1);
         assert_eq!(order.side, Side::Buy);
         assert_eq!(order.quantity, 100);
-        assert_eq!(order.remaining_quantity, 100);
         assert_eq!(order.price, 5000);
         assert_eq!(order.status, OrderStatus::Active);
         assert!(!order.is_filled());
-        assert!(!order.is_partially_filled());
     }
 
     #[test]
@@ -192,16 +193,14 @@ mod tests {
         // Partial fill
         let filled = order.fill(30, 1001);
         assert_eq!(filled, 30);
-        assert_eq!(order.remaining_quantity, 70);
-        assert_eq!(order.filled_quantity(), 30);
-        assert!(order.is_partially_filled());
-        assert_eq!(order.status, OrderStatus::PartiallyFilled);
+        assert_eq!(order.quantity, 70);
+        assert!(!order.is_filled());
+        assert_eq!(order.status, OrderStatus::Active);
         
         // Complete fill
         let filled = order.fill(70, 1002);
         assert_eq!(filled, 70);
-        assert_eq!(order.remaining_quantity, 0);
-        assert_eq!(order.filled_quantity(), 100);
+        assert_eq!(order.quantity, 0);
         assert!(order.is_filled());
         assert_eq!(order.status, OrderStatus::Filled);
     }
@@ -213,7 +212,7 @@ mod tests {
         // Try to fill more than available
         let filled = order.fill(150, 1001);
         assert_eq!(filled, 100);
-        assert_eq!(order.remaining_quantity, 0);
+        assert_eq!(order.quantity, 0);
         assert!(order.is_filled());
     }
 }
